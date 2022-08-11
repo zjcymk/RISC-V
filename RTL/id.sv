@@ -1,5 +1,7 @@
 `include "defines.sv"
-
+import id_pkg::*;
+import opcode_pkg::*;
+import type_pkg::*;
 module id(
     input  logic        clk,
     input  logic        rst_n,

@@ -1,7 +1,7 @@
 `include "defines.sv"
-module mem (
-    input  logic        clk,
-    input  logic        rst_n,         
+import type_pkg::*;
+import opcode_pkg::*;
+module mem (      
     // from ex
     input RegBus        reg_wdata_i,   // 写寄存器数据
     input logic         reg_we_i,      // 是否要写通用寄存器
@@ -14,25 +14,31 @@ module mem (
     input MemIndex      w_index,
     input ExCode        ex_code_i,
     input OpcodeWide    opcode_i,
-    // from 
-    input MemBus       ram_rdata_i,  
+    //from RAM
+    input MemBus        mem_rdata_i,
     // to RAM
     output MemBus      mem_wdata_o,
     output MemAddrBus  mem_raddr_o,
     output MemAddrBus  mem_waddr_o,
-    output logic       mem_we_o,   
-    // to WB
-    output OpcodeWide opcode_o,
+    output logic       mem_we_o,  
+    //to 
+    output RegBus      mem_data_o,   // 写寄存器数据
+    output RegAddrBus  mem_addr_o,   // 写通用寄存器地址
+    // to regs
     output RegBus     reg_wdata_o,   // 写寄存器数据
     output logic      reg_we_o,      // 是否要写通用寄存器
     output RegAddrBus reg_waddr_o   // 写通用寄存器地址
 
 );
-MemBus       mem_rdata_i;
+assign mem_data_o = reg_wdata_o;
+assign mem_addr_o = reg_waddr_o;
 //assign reg_wdata_o = reg_wdata_i;
 assign reg_we_o    = reg_we_i   ;
 assign reg_waddr_o = reg_waddr_i;
-assign opcode_o    = opcode_i;
+assign mem_raddr_o = mem_raddr_i;
+assign mem_waddr_o = mem_waddr_i;
+assign mem_we_o    = mem_we_i   ;  
+
 always_comb begin
     unique case (ex_code_i)
         LB :begin
@@ -116,7 +122,8 @@ always_comb begin
             end
         end
         SW: begin
-            mem_wdata_o = mem_wdata_i;
+            //mem_wdata_o = mem_wdata_i;
+            mem_wdata_o = 32'd5431;
         end
         default :begin
             mem_wdata_o = `ZeroWord;

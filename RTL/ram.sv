@@ -1,4 +1,5 @@
 `include "defines.sv"
+import type_pkg::*;
 module ram (
     input   logic        clk,
     input   logic        rst_n,
@@ -11,7 +12,7 @@ module ram (
     output  MemBus       mem_rdata_o
 );
 
-logic [31:0] ram [0:127];
+logic [31:0] ram [0:8];
 always_ff @( posedge clk ) begin
     if(mem_we_i) begin
         ram[mem_waddr_i] <= mem_wdata_i;

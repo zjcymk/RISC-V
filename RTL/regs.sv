@@ -1,4 +1,5 @@
 `include "defines.sv"
+import type_pkg::*;
 // 通用寄存器模块
 module regs(
 
@@ -23,7 +24,7 @@ module regs(
     // 写寄存器
     always_ff @( posedge clk ) begin 
         if (rst_n == `RstEnable) begin
-            for (int i = 0 ; i<`RegNum-1 ; i++ ) begin
+            for (int i = 0 ; i<`RegNum ; i++ ) begin
             regs [i] = 32'b0;
             end
         end else if ((we_i == `WriteEnable) && (waddr_i != `ZeroReg))begin
