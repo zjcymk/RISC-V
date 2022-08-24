@@ -5,6 +5,18 @@ module rom(
 
     output InstBus    inst
 );
+logic [7:0] ROM [0:64];
+word temp;
+localparam FILE_TXT = "/home/ICer/mcu/binfile";
+integer fd;
+integer f_Temp;
+initial begin
+    fd = $fopen(FILE_TXT, "rb");
+    f_Temp = $fread(ROM,fd);
+end
+//assign temp = ROM[pc_i];
+assign inst = {ROM [pc_i+3],ROM [pc_i+2],ROM [pc_i+1],ROM [pc_i]};
+/*
 always_comb begin
     unique case (pc_i)
         8'd0     : inst <= 32'b000000000000_00000_000_0000_0010011;
@@ -23,4 +35,5 @@ always_comb begin
         default : inst <= 32'b000000000000_00000_000_0000_0010011;
     endcase
 end
+*/
 endmodule

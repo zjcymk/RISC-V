@@ -7,7 +7,9 @@ enum logic [6:0] {
     INST_TYPE_S = 7'b0100011,
     INST_TYPE_B = 7'b1100011,
     INST_LUI_U  = 7'b0110111,
-    INST_AUIPC_U= 7'b0010111
+    INST_AUIPC_U= 7'b0010111,
+    INST_JAL    = 7'b1101111,
+    INST_JALR   = 7'b1100111
 } opcode_a;
 // I type inst
 enum logic [2:0] { 
@@ -18,7 +20,7 @@ enum logic [2:0] {
     INST_ORI   = 3'b110,
     INST_ANDI  = 3'b111,
     INST_SLLI  = 3'b001,
-    INST_SRI   = 3'b101
+    INST_SRLI  = 3'b101
 } I_funct3;
 
 
@@ -63,8 +65,9 @@ enum logic [2:0] {
 } R_funct3M;
 enum logic [6:0] { 
     A_f7 = 7'b0000000,
-    B_f7 = 7'b0100000
-} funct7_add;
+    B_f7 = 7'b0100000,
+    C_f7 = 7'b0000001
+} funct7_R;
 
 
 // U type inst

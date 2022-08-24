@@ -25,7 +25,7 @@ module regs(
     always_ff @( posedge clk ) begin 
         if (rst_n == `RstEnable) begin
             for (int i = 0 ; i<`RegNum ; i++ ) begin
-            regs [i] = 32'b0;
+                regs [i] = 32'b0;
             end
         end else if ((we_i == `WriteEnable) && (waddr_i != `ZeroReg))begin
             regs[waddr_i] <= wdata_i;

@@ -16,8 +16,8 @@ module cache(
     output RegBus       ex_data1_o, 
     output RegBus       ex_data2_o, 
     // from reg
-    input  RegAddrBus   reg1_rdata_i,    // 通用寄存器1输入数据
-    input  RegAddrBus   reg2_rdata_i,    // 通用寄存器2输入数据
+    input  RegBus       reg1_rdata_i,    // 通用寄存器1输入数据
+    input  RegBus       reg2_rdata_i,    // 通用寄存器2输入数据
     // to reg 
     output RegAddrBus   reg1_raddr_o,    // 读通用寄存器1地址
     output RegAddrBus   reg2_raddr_o     // 读通用寄存器2地址

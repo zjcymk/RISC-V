@@ -17,16 +17,13 @@ module ex(
     output word        ALU_data2_o,
     output aluop       ALU_op_o,
     //from ALU
-    input word         ALU_result_i,
+    input DoubleRegBus ALU_result_i,
     input logic        ALU_busy_i,
 
     //to MEM
     output MemBus     mem_wdata_o,    // 写内存数据
     output MemAddrBus mem_raddr_o,    // 读内存地址
     output MemAddrBus mem_waddr_o,    // 写内存地址
-    output logic      mem_we_o,       // 是否要写内存
-    output MemIndex   r_index_o,
-    output MemIndex   w_index_o,
     
     // to MEM --> reg
     output RegBus     reg_wdata_o,   // 写寄存器数据
@@ -34,7 +31,6 @@ module ex(
     output RegAddrBus reg_waddr_o,   // 写通用寄存器地址
 
     // to ctrl
-    output logic        hold_flag_o,  // 是否暂停标志
     output logic        jump_flag_o,  // 是否跳转标志
     output InstAddrBus  jump_addr_o   // 跳转目的地址
 
@@ -42,13 +38,12 @@ module ex(
 InstAddrBus jump_addr;
 assign jump_addr = pc_i + imm1_i;
 assign data_ex_o = reg_wdata_o;
-assign r_index_o = (reg1_rdata_i + imm1_i) & 2'b11;
-assign w_index_o = (reg1_rdata_i + imm1_i) & 2'b11;
 
 assign reg_we_o = reg_we_i;
 assign reg_waddr_o = reg_waddr_i;
 always_comb begin
     case (ex_code_i)
+    //INST_TYPE_I
         ADDI: begin
             ALU_data1_o = reg1_rdata_i;
             ALU_data2_o = imm1_i;
@@ -56,11 +51,88 @@ always_comb begin
             mem_wdata_o = `ZeroWord;
             mem_raddr_o = `ZeroWord;
             mem_waddr_o = `ZeroWord;
-            mem_we_o    = `WriteDisable;
-            reg_wdata_o = ALU_result_i;
+            reg_wdata_o = ALU_result_i[31:0];
             jump_flag_o = `JumpDisable;
             jump_addr_o = `ZeroWord;
         end
+        SLTI :begin
+            ALU_data1_o = reg1_rdata_i;
+            ALU_data2_o = imm1_i;
+            ALU_op_o    = alu_ge_s;
+            mem_wdata_o = `ZeroWord;
+            mem_raddr_o = `ZeroWord;
+            mem_waddr_o = `ZeroWord;
+            reg_wdata_o = {32{(~ALU_result_i[31:0])}};
+            jump_flag_o = `JumpDisable;
+            jump_addr_o = `ZeroWord;
+        end
+        SLTIU:begin
+            ALU_data1_o = reg1_rdata_i;
+            ALU_data2_o = imm1_i;
+            ALU_op_o    = alu_ge_u;
+            mem_wdata_o = `ZeroWord;
+            mem_raddr_o = `ZeroWord;
+            mem_waddr_o = `ZeroWord;
+            reg_wdata_o = {32{(~ALU_result_i[31:0])}};
+            jump_flag_o = `JumpDisable;
+            jump_addr_o = `ZeroWord;
+        end
+        XORI :begin
+            ALU_data1_o = reg1_rdata_i;
+            ALU_data2_o = imm1_i;
+            ALU_op_o    = alu_xor;
+            mem_wdata_o = `ZeroWord;
+            mem_raddr_o = `ZeroWord;
+            mem_waddr_o = `ZeroWord;
+            reg_wdata_o = ALU_result_i[31:0];
+            jump_flag_o = `JumpDisable;
+            jump_addr_o = `ZeroWord;
+        end
+        ORI  :begin
+            ALU_data1_o = reg1_rdata_i;
+            ALU_data2_o = imm1_i;
+            ALU_op_o    = alu_or;
+            mem_wdata_o = `ZeroWord;
+            mem_raddr_o = `ZeroWord;
+            mem_waddr_o = `ZeroWord;
+            reg_wdata_o = ALU_result_i[31:0];
+            jump_flag_o = `JumpDisable;
+            jump_addr_o = `ZeroWord;
+        end
+        ANDI :begin
+            ALU_data1_o = reg1_rdata_i;
+            ALU_data2_o = imm1_i;
+            ALU_op_o    = alu_and;
+            mem_wdata_o = `ZeroWord;
+            mem_raddr_o = `ZeroWord;
+            mem_waddr_o = `ZeroWord;
+            reg_wdata_o = ALU_result_i[31:0];
+            jump_flag_o = `JumpDisable;
+            jump_addr_o = `ZeroWord;
+        end
+        SLLI :begin
+            ALU_data1_o = reg1_rdata_i;
+            ALU_data2_o = imm1_i;
+            ALU_op_o    = alu_sll;
+            mem_wdata_o = `ZeroWord;
+            mem_raddr_o = `ZeroWord;
+            mem_waddr_o = `ZeroWord;
+            reg_wdata_o = ALU_result_i[31:0];
+            jump_flag_o = `JumpDisable;
+            jump_addr_o = `ZeroWord;
+        end
+        SRLI :begin
+            ALU_data1_o = reg1_rdata_i;
+            ALU_data2_o = imm1_i;
+            ALU_op_o    = alu_srl;
+            mem_wdata_o = `ZeroWord;
+            mem_raddr_o = `ZeroWord;
+            mem_waddr_o = `ZeroWord;
+            reg_wdata_o = ALU_result_i[31:0];
+            jump_flag_o = `JumpDisable;
+            jump_addr_o = `ZeroWord;
+        end
+        //INST_TYPE_R
         ADD: begin
             ALU_data1_o = reg1_rdata_i;
             ALU_data2_o = reg2_rdata_i;
@@ -68,8 +140,197 @@ always_comb begin
             mem_wdata_o = `ZeroWord;
             mem_raddr_o = `ZeroWord;
             mem_waddr_o = `ZeroWord;
-            mem_we_o    = `WriteDisable;
-            reg_wdata_o = ALU_result_i;
+            reg_wdata_o = ALU_result_i[31:0];
+            jump_flag_o = `JumpDisable;
+            jump_addr_o = `ZeroWord;
+        end
+        SUB :begin
+            ALU_data1_o = reg1_rdata_i;
+            ALU_data2_o = reg2_rdata_i;
+            ALU_op_o    = alu_sub;
+            mem_wdata_o = `ZeroWord;
+            mem_raddr_o = `ZeroWord;
+            mem_waddr_o = `ZeroWord;
+            reg_wdata_o = ALU_result_i[31:0];
+            jump_flag_o = `JumpDisable;
+            jump_addr_o = `ZeroWord;
+        end
+        MUL   :begin
+            ALU_data1_o = reg1_rdata_i;
+            ALU_data2_o = reg2_rdata_i;
+            ALU_op_o    = alu_mul_u;
+            mem_wdata_o = `ZeroWord;
+            mem_raddr_o = `ZeroWord;
+            mem_waddr_o = `ZeroWord;
+            reg_wdata_o = ALU_result_i[31:0];
+            jump_flag_o = `JumpDisable;
+            jump_addr_o = `ZeroWord;
+        end
+        MULH  :begin
+            ALU_data1_o = reg1_rdata_i;
+            ALU_data2_o = reg2_rdata_i;
+            ALU_op_o    = alu_mul_s;
+            mem_wdata_o = `ZeroWord;
+            mem_raddr_o = `ZeroWord;
+            mem_waddr_o = `ZeroWord;
+            reg_wdata_o = ALU_result_i[63:32];
+            jump_flag_o = `JumpDisable;
+            jump_addr_o = `ZeroWord;
+        end
+        MULHSU:begin
+            ALU_data1_o = reg1_rdata_i;
+            ALU_data2_o = reg2_rdata_i;
+            ALU_op_o    = alu_mul_u;
+            mem_wdata_o = `ZeroWord;
+            mem_raddr_o = `ZeroWord;
+            mem_waddr_o = `ZeroWord;
+            if (reg1_rdata_i[31] == 1'b1)
+                reg_wdata_o = ~ALU_result_i[63:32]+1;
+            else 
+                reg_wdata_o = ALU_result_i[63:32];
+            jump_flag_o = `JumpDisable;
+            jump_addr_o = `ZeroWord;
+        end
+        MULHU :begin
+            ALU_data1_o = reg1_rdata_i;
+            ALU_data2_o = reg2_rdata_i;
+            ALU_op_o    = alu_mul_u;
+            mem_wdata_o = `ZeroWord;
+            mem_raddr_o = `ZeroWord;
+            mem_waddr_o = `ZeroWord;
+            reg_wdata_o = ALU_result_i[63:32];
+            jump_flag_o = `JumpDisable;
+            jump_addr_o = `ZeroWord;
+        end
+        DIV   :begin
+            ALU_data1_o = reg1_rdata_i;
+            ALU_data2_o = reg2_rdata_i;
+            ALU_op_o    = alu_div_s;
+            mem_wdata_o = `ZeroWord;
+            mem_raddr_o = `ZeroWord;
+            mem_waddr_o = `ZeroWord;
+            reg_wdata_o = ALU_result_i[31:0];
+            jump_flag_o = `JumpDisable;
+            jump_addr_o = `ZeroWord;
+        end
+        DIVU  :begin
+            ALU_data1_o = reg1_rdata_i;
+            ALU_data2_o = reg2_rdata_i;
+            ALU_op_o    = alu_div_u;
+            mem_wdata_o = `ZeroWord;
+            mem_raddr_o = `ZeroWord;
+            mem_waddr_o = `ZeroWord;
+            reg_wdata_o = ALU_result_i[31:0];
+            jump_flag_o = `JumpDisable;
+            jump_addr_o = `ZeroWord;
+        end
+        REM   :begin
+            ALU_data1_o = reg1_rdata_i;
+            ALU_data2_o = reg2_rdata_i;
+            ALU_op_o    = alu_rem_s;
+            mem_wdata_o = `ZeroWord;
+            mem_raddr_o = `ZeroWord;
+            mem_waddr_o = `ZeroWord;
+            reg_wdata_o = ALU_result_i[31:0];
+            jump_flag_o = `JumpDisable;
+            jump_addr_o = `ZeroWord;
+        end
+        REMU  :begin
+            ALU_data1_o = reg1_rdata_i;
+            ALU_data2_o = reg2_rdata_i;
+            ALU_op_o    = alu_rem_u;
+            mem_wdata_o = `ZeroWord;
+            mem_raddr_o = `ZeroWord;
+            mem_waddr_o = `ZeroWord;
+            reg_wdata_o = ALU_result_i[31:0];
+            jump_flag_o = `JumpDisable;
+            jump_addr_o = `ZeroWord;
+        end
+        SLL :begin
+            ALU_data1_o = reg1_rdata_i;
+            ALU_data2_o = reg2_rdata_i[4:0];
+            ALU_op_o    = alu_sll;
+            mem_wdata_o = `ZeroWord;
+            mem_raddr_o = `ZeroWord;
+            mem_waddr_o = `ZeroWord;
+            reg_wdata_o = ALU_result_i[31:0];
+            jump_flag_o = `JumpDisable;
+            jump_addr_o = `ZeroWord;
+        end
+        SLT :begin
+            ALU_data1_o = reg1_rdata_i;
+            ALU_data2_o = reg2_rdata_i;
+            ALU_op_o    = alu_ge_s;
+            mem_wdata_o = `ZeroWord;
+            mem_raddr_o = `ZeroWord;
+            mem_waddr_o = `ZeroWord;
+            reg_wdata_o = {32{(~ALU_result_i[31:0])}};
+            jump_flag_o = `JumpDisable;
+            jump_addr_o = `ZeroWord;
+        end
+        SLTU:begin
+            ALU_data1_o = reg1_rdata_i;
+            ALU_data2_o = reg2_rdata_i;
+            ALU_op_o    = alu_ge_u;
+            mem_wdata_o = `ZeroWord;
+            mem_raddr_o = `ZeroWord;
+            mem_waddr_o = `ZeroWord;
+            reg_wdata_o = {32{(~ALU_result_i[31:0])}};
+            jump_flag_o = `JumpDisable;
+            jump_addr_o = `ZeroWord;
+        end
+        XOR :begin
+            ALU_data1_o = reg1_rdata_i;
+            ALU_data2_o = reg2_rdata_i;
+            ALU_op_o    = alu_xor;
+            mem_wdata_o = `ZeroWord;
+            mem_raddr_o = `ZeroWord;
+            mem_waddr_o = `ZeroWord;
+            reg_wdata_o = ALU_result_i[31:0];
+            jump_flag_o = `JumpDisable;
+            jump_addr_o = `ZeroWord;
+        end
+        SRA :begin
+            ALU_data1_o = reg1_rdata_i;
+            ALU_data2_o = reg2_rdata_i[4:0];
+            ALU_op_o    = alu_sra;
+            mem_wdata_o = `ZeroWord;
+            mem_raddr_o = `ZeroWord;
+            mem_waddr_o = `ZeroWord;
+            reg_wdata_o = ALU_result_i[31:0];
+            jump_flag_o = `JumpDisable;
+            jump_addr_o = `ZeroWord;
+        end
+        SRL :begin
+            ALU_data1_o = reg1_rdata_i;
+            ALU_data2_o = reg2_rdata_i[4:0];
+            ALU_op_o    = alu_srl;
+            mem_wdata_o = `ZeroWord;
+            mem_raddr_o = `ZeroWord;
+            mem_waddr_o = `ZeroWord;
+            reg_wdata_o = ALU_result_i[31:0];
+            jump_flag_o = `JumpDisable;
+            jump_addr_o = `ZeroWord;
+        end
+        OR  :begin
+            ALU_data1_o = reg1_rdata_i;
+            ALU_data2_o = reg2_rdata_i;
+            ALU_op_o    = alu_or;
+            mem_wdata_o = `ZeroWord;
+            mem_raddr_o = `ZeroWord;
+            mem_waddr_o = `ZeroWord;
+            reg_wdata_o = ALU_result_i[31:0];
+            jump_flag_o = `JumpDisable;
+            jump_addr_o = `ZeroWord;
+        end
+        AND :begin
+            ALU_data1_o = reg1_rdata_i;
+            ALU_data2_o = reg2_rdata_i;
+            ALU_op_o    = alu_and;
+            mem_wdata_o = `ZeroWord;
+            mem_raddr_o = `ZeroWord;
+            mem_waddr_o = `ZeroWord;
+            reg_wdata_o = ALU_result_i[31:0];
             jump_flag_o = `JumpDisable;
             jump_addr_o = `ZeroWord;
         end
@@ -81,9 +342,8 @@ always_comb begin
             mem_wdata_o = `ZeroWord;
             mem_raddr_o = `ZeroWord;
             mem_waddr_o = `ZeroWord;
-            mem_we_o    = `WriteDisable;
             reg_wdata_o = `ZeroWord;
-            jump_flag_o = (ALU_result_i) & `JumpEnable;
+            jump_flag_o = (ALU_result_i[31:0]) & `JumpEnable;
             jump_addr_o = jump_addr;
         end
         BNE  :begin
@@ -93,9 +353,8 @@ always_comb begin
             mem_wdata_o = `ZeroWord;
             mem_raddr_o = `ZeroWord;
             mem_waddr_o = `ZeroWord;
-            mem_we_o    = `WriteDisable;
             reg_wdata_o = `ZeroWord;
-            jump_flag_o = (~ALU_result_i) & `JumpEnable;
+            jump_flag_o = (~ALU_result_i[31:0]) & `JumpEnable;
             jump_addr_o = jump_addr; 
         end
         BLT  :begin
@@ -105,9 +364,8 @@ always_comb begin
             mem_wdata_o = `ZeroWord;
             mem_raddr_o = `ZeroWord;
             mem_waddr_o = `ZeroWord;
-            mem_we_o    = `WriteDisable;
             reg_wdata_o = `ZeroWord;
-            jump_flag_o = (~ALU_result_i) & `JumpEnable;
+            jump_flag_o = (~ALU_result_i[31:0]) & `JumpEnable;
             jump_addr_o = jump_addr; 
         end
         BGE  :begin
@@ -117,9 +375,8 @@ always_comb begin
             mem_wdata_o = `ZeroWord;
             mem_raddr_o = `ZeroWord;
             mem_waddr_o = `ZeroWord;
-            mem_we_o    = `WriteDisable;
             reg_wdata_o = `ZeroWord;
-            jump_flag_o = (ALU_result_i) & `JumpEnable;
+            jump_flag_o = (ALU_result_i[31:0]) & `JumpEnable;
             jump_addr_o = jump_addr; 
         end
         BLTU :begin
@@ -129,9 +386,8 @@ always_comb begin
             mem_wdata_o = `ZeroWord;
             mem_raddr_o = `ZeroWord;
             mem_waddr_o = `ZeroWord;
-            mem_we_o    = `WriteDisable;
             reg_wdata_o = `ZeroWord;
-            jump_flag_o = (~ALU_result_i) & `JumpEnable;
+            jump_flag_o = (~ALU_result_i[31:0]) & `JumpEnable;
             jump_addr_o = jump_addr;  
         end
         BGEU :begin
@@ -141,9 +397,8 @@ always_comb begin
             mem_wdata_o = `ZeroWord;
             mem_raddr_o = `ZeroWord;
             mem_waddr_o = `ZeroWord;
-            mem_we_o    = `WriteDisable;
             reg_wdata_o = `ZeroWord;
-            jump_flag_o = (ALU_result_i) & `JumpEnable;
+            jump_flag_o = (ALU_result_i[31:0]) & `JumpEnable;
             jump_addr_o = jump_addr; 
         end
         //INST_TYPE_L
@@ -152,9 +407,8 @@ always_comb begin
             ALU_data2_o = imm1_i;
             ALU_op_o    = alu_add;
             mem_wdata_o = `ZeroWord;
-            mem_raddr_o = ALU_result_i;
+            mem_raddr_o = ALU_result_i[31:0];
             mem_waddr_o = `ZeroWord;
-            mem_we_o    = `WriteDisable;
             reg_wdata_o = `ZeroWord;
             jump_flag_o = `JumpDisable;
             jump_addr_o = `ZeroWord;
@@ -164,9 +418,8 @@ always_comb begin
             ALU_data2_o = imm1_i;
             ALU_op_o    = alu_add;
             mem_wdata_o = `ZeroWord;
-            mem_raddr_o = ALU_result_i;
+            mem_raddr_o = ALU_result_i[31:0];
             mem_waddr_o = `ZeroWord;
-            mem_we_o    = `WriteDisable;
             reg_wdata_o = `ZeroWord;
             jump_flag_o = `JumpDisable;
             jump_addr_o = `ZeroWord;
@@ -176,9 +429,8 @@ always_comb begin
             ALU_data2_o = imm1_i;
             ALU_op_o    = alu_add;
             mem_wdata_o = `ZeroWord;
-            mem_raddr_o = ALU_result_i;
+            mem_raddr_o = ALU_result_i[31:0];
             mem_waddr_o = `ZeroWord;
-            mem_we_o    = `WriteDisable;
             reg_wdata_o = `ZeroWord;
             jump_flag_o = `JumpDisable;
             jump_addr_o = `ZeroWord;   
@@ -188,9 +440,8 @@ always_comb begin
             ALU_data2_o = imm1_i;
             ALU_op_o    = alu_add;
             mem_wdata_o = `ZeroWord;
-            mem_raddr_o = ALU_result_i;
+            mem_raddr_o = ALU_result_i[31:0];
             mem_waddr_o = `ZeroWord;
-            mem_we_o    = `WriteDisable;
             reg_wdata_o = `ZeroWord;
             jump_flag_o = `JumpDisable;
             jump_addr_o = `ZeroWord;   
@@ -200,9 +451,8 @@ always_comb begin
             ALU_data2_o = imm1_i;
             ALU_op_o    = alu_add;
             mem_wdata_o = `ZeroWord;
-            mem_raddr_o = ALU_result_i;
+            mem_raddr_o = ALU_result_i[31:0];
             mem_waddr_o = `ZeroWord;
-            mem_we_o    = `WriteDisable;
             reg_wdata_o = `ZeroWord;
             jump_flag_o = `JumpDisable;
             jump_addr_o = `ZeroWord;  
@@ -212,10 +462,9 @@ always_comb begin
             ALU_data1_o = reg1_rdata_i;
             ALU_data2_o = imm1_i;
             ALU_op_o    = alu_add;
-            mem_wdata_o = `ZeroWord;
-            mem_raddr_o = ALU_result_i;
-            mem_waddr_o = ALU_result_i;
-            mem_we_o    = `WriteEnable;
+            mem_wdata_o = reg2_rdata_i;
+            mem_raddr_o = `ZeroWord;
+            mem_waddr_o = ALU_result_i[31:0];
             reg_wdata_o = `ZeroWord;
             jump_flag_o = `JumpDisable;
             jump_addr_o = `ZeroWord;  
@@ -224,25 +473,69 @@ always_comb begin
             ALU_data1_o = reg1_rdata_i;
             ALU_data2_o = imm1_i;
             ALU_op_o    = alu_add;
-            mem_wdata_o = `ZeroWord;
-            mem_raddr_o = ALU_result_i;
-            mem_waddr_o = ALU_result_i;
-            mem_we_o    = `WriteEnable;
+            mem_wdata_o = reg2_rdata_i;
+            mem_raddr_o = `ZeroWord;
+            mem_waddr_o = ALU_result_i[31:0];
             reg_wdata_o = `ZeroWord;
             jump_flag_o = `JumpDisable;
-            jump_addr_o = `ZeroWord;  
+            jump_addr_o = `ZeroWord; 
         end
         SW: begin
             ALU_data1_o = reg1_rdata_i;
             ALU_data2_o = imm1_i;
             ALU_op_o    = alu_add;
-            mem_wdata_o = `ZeroWord;
-            mem_raddr_o = ALU_result_i;
-            mem_waddr_o = ALU_result_i;
-            mem_we_o    = `WriteEnable;
+            mem_wdata_o = reg2_rdata_i;
+            mem_raddr_o = `ZeroWord;
+            mem_waddr_o = ALU_result_i[31:0];
             reg_wdata_o = `ZeroWord;
             jump_flag_o = `JumpDisable;
             jump_addr_o = `ZeroWord;              
+        end
+        // INST_TYPE_U
+        LUI: begin
+            ALU_data1_o = `ZeroWord;
+            ALU_data2_o = `ZeroWord;
+            ALU_op_o    = alu_nop;
+            mem_wdata_o = `ZeroWord;
+            mem_raddr_o = `ZeroWord;
+            mem_waddr_o = `ZeroWord;
+            reg_wdata_o = imm1_i;
+            jump_flag_o = `JumpDisable;
+            jump_addr_o = `ZeroWord;            
+        end
+        AUIPC: begin
+            ALU_data1_o = imm1_i;
+            ALU_data2_o = pc_i;
+            ALU_op_o    = alu_add;
+            mem_wdata_o = `ZeroWord;
+            mem_raddr_o = `ZeroWord;
+            mem_waddr_o = `ZeroWord;
+            reg_wdata_o = ALU_result_i[31:0];
+            jump_flag_o = `JumpDisable;
+            jump_addr_o = `ZeroWord;            
+        end
+        // INST_TYPE_J
+        JAL  :begin
+            ALU_data1_o = imm2_i;
+            ALU_data2_o = pc_i;
+            ALU_op_o    = alu_add;
+            mem_wdata_o = `ZeroWord;
+            mem_raddr_o = `ZeroWord;
+            mem_waddr_o = `ZeroWord;
+            reg_wdata_o = ALU_result_i[31:0];
+            jump_flag_o = `JumpEnable;
+            jump_addr_o = jump_addr;      
+        end
+        JALR :begin
+            ALU_data1_o = imm2_i;
+            ALU_data2_o = pc_i;
+            ALU_op_o    = alu_add;
+            mem_wdata_o = `ZeroWord;
+            mem_raddr_o = `ZeroWord;
+            mem_waddr_o = `ZeroWord;
+            reg_wdata_o = ALU_result_i[31:0];
+            jump_flag_o = `JumpEnable;
+            jump_addr_o = reg1_rdata_i + imm1_i; 
         end
         default: begin
             ALU_data1_o = `ZeroWord;
@@ -251,8 +544,7 @@ always_comb begin
             mem_wdata_o = `ZeroWord;
             mem_raddr_o = `ZeroWord;
             mem_waddr_o = `ZeroWord;
-            mem_we_o    = `WriteDisable;
-            reg_wdata_o = ALU_result_i;
+            reg_wdata_o = ALU_result_i[31:0];
             jump_flag_o = `JumpDisable;
             jump_addr_o = `ZeroWord;
         end

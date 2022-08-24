@@ -1,19 +1,34 @@
 import type_pkg::*;
-module top (
-    input logic clk,
-    input logic rst_n   
+module core (
+    input  logic clk,
+    input  logic rst_n,
+
+    output InstAddrBus pc_rom  , 
+    input  InstBus     inst_rom,
+
+
+    input  MemBus       mem_rdata,
+
+    output MemBus       mem_wdata,
+    output MemAddrBus   mem_raddr,
+    output MemAddrBus   mem_waddr,
+    output logic [3:0]  mem_we       
 );
 
 
-InstAddrBus pc;
+InstAddrBus pc_id;
 InstAddrBus pc_ex;
 InstAddrBus pc_mem;
-InstBus     inst;
+InstBus     inst_id;
 InstAddrBus pc_ctrl;
-logic       pc_flag;
+logic       pc_hold_flag;
 logic       jump_flag;
+logic       jump_bp_if;
+logic       jump_bp_id;
+logic       jump_bp_ex;
 InstAddrBus jump_addr;
-logic       ex_hold_flag;
+logic       hold_flag;
+logic       scour_flag;
 logic       we;    
 RegAddrBus  waddr;
 RegBus      wdata; 
@@ -71,37 +86,24 @@ MemIndex    w_index_mem;
 
 MemAddrBus  ram_waddr;
 MemBus      ram_wdata;
-logic       ram_we;
+logic [3:0] ram_we;
 MemAddrBus  ram_raddr;
 MemBus      ram_rdata;
 ExCode      ex_code_mem;
 OpcodeWide  opcode_mem;
 
 
-regs  u_regs (
-    .clk               ( clk      ),
-    .rst_n             ( rst_n    ),
-    .we_i              ( we     ),
-    .waddr_i           ( waddr  ),
-    .wdata_i           ( wdata  ),
-    .raddr1_i          ( raddr1 ),
-    .raddr2_i          ( raddr2 ),
 
-    .rdata1_o          ( rdata1 ),
-    .rdata2_o          ( rdata2 )
-);
 pc_reg  u_pc_reg (
     .clk         ( clk          ),
     .rst_n       ( rst_n        ),
     .pc_i        ( pc_ctrl   ) ,
-    .ctrl        ( pc_flag   ) ,
-    .pc_o        ( pc   ) 
+    .pc_hold_flag( hold_flag ),
+    .jump_flag_i ( scour_flag ),
+    .jump_bp     ( jump_bp_if ),
+    .pc_o        ( pc_rom   ) 
 );
 
-rom  u_rom (
-    .pc_i        (pc   ),
-    .inst        (inst    ) 
-);
 cache  u_cache (
     .clk           ( clk           ),
     .rst_n         ( rst_n         ),
@@ -120,26 +122,50 @@ cache  u_cache (
     .reg2_raddr_o  ( raddr2  )
 );
 ctrl u_ctrl(
+    .clk           ( clk            ),
+    .rst_n         ( rst_n          ),
     //from ex
     .jump_flag_i   (jump_flag  ),
+    .bp_jump_ex    (jump_bp_ex  ),
+    .pc_ex_i       ( pc_ex   ),
     .ex_opcode_i   (opcode_ex),
     .ex_waddr_i    (ex_waddr_i),
-    .pc_ex_i       ( jump_addr ),
+    .pc_jump_i     ( jump_addr ),
+    .ALU_busy_i    ( ALU_busy   ),
     //from id  
     .id_raddr1_i   (rd1),
     .id_raddr2_i   (rd2),
-    .pc_id_i       (pc),
+    .pc_id_i       (pc_id),
     //to id_ex  
-    .ex_hold_flag  ( ex_hold_flag  ),
+    .hold_flag     ( hold_flag  ),
+    .scour_flag    ( scour_flag ),
+    //to if
+    .jump_bp       ( jump_bp_if  ),
+    //from pc_reg
+    .pc_i          ( pc_rom ),
+    .inst_i        ( inst_rom ),
     //to pc_reg 
-    .pc_id_o       (pc_ctrl),
-    .pc_hold_flag  (pc_flag)
+    .pc_o          (pc_ctrl),
+    .pc_hold_flag  (pc_hold_flag)
+);
+if_id  u_if_id(
+    
+    .clk            (clk),
+    .rst_n          (rst_n),
+    .id_hold_flag   (hold_flag ),
+    .id_scour_flag  (scour_flag),
+    .inst_i         (inst_rom),
+    .pc_i           (pc_rom),
+    .jump_bp_i      (jump_bp_if   ),
+    .jump_bp_o      (jump_bp_id   ),
+    .inst_o         (inst_id),
+    .pc_o           (pc_id)
 );
 id  u_id (
     .clk           ( clk            ),
     .rst_n         ( rst_n          ),
-    .inst_i        ( inst          ),
-    .inst_addr_i   ( inst_addr_i    ),
+    .inst_i        ( inst_id        ),
+    .pc_id         ( pc_id    ),
 
 
     .id_addr1_o    ( rd1     ),
@@ -162,16 +188,18 @@ id_ex  u_id_ex (
     .rst_n         ( rst_n          ),
     .ex_data1_i    ( ex_data1     ),
     .ex_data2_i    ( ex_data2     ),
-    .reg1_rdata_i  ( reg1_rdata_i   ),
-    .reg2_rdata_i  ( reg2_rdata_i   ),
     .reg_we_i      ( id_we_i       ),
     .reg_waddr_i   ( id_waddr_i    ),
     .imm1_i        ( imm1_i         ),
     .imm2_i        ( imm2_i         ),
     .ex_code_i     ( ex_code_id      ),
     .opcode_i      ( opcode_id      ),
-    .pc_i          (pc              ),
-    .ex_hold_flag  ( ex_hold_flag   ),
+    .pc_i          (pc_id           ),
+    //from ctrl
+    .ex_hold_flag  ( hold_flag   ),
+    .ex_scour_flag ( scour_flag  ),
+    .jump_bp_i     ( jump_bp_id  ),
+    .jump_bp_o     ( jump_bp_ex  ),
     .opcode_o      ( opcode_ex      ),
     .reg1_rdata_o  ( ex1_rdata   ),
     .reg2_rdata_o  ( ex2_rdata   ),
@@ -199,10 +227,7 @@ ex  u_ex(
     .ALU_op_o      ( ALU_op    ),
     .mem_wdata_o   (ram_wdata_ex) ,
     .mem_raddr_o   (ram_raddr_ex) ,
-    .mem_waddr_o   (ram_waddr_ex) ,
-    .mem_we_o      (ram_we_ex   ) ,   
-    .r_index_o     (r_index_ex  ) ,
-    .w_index_o     (w_index_ex  ) ,
+    .mem_waddr_o   (ram_waddr_ex) , 
     .reg_wdata_o   (  ex_wdata ),
     .reg_we_o      (  ex_we    ),
     .reg_waddr_o   (  ex_waddr ),
@@ -232,15 +257,9 @@ ex_mem  u_ex_mem (
     .mem_wdata_i (ram_wdata_ex  ) ,
     .mem_raddr_i (ram_raddr_ex  ) ,
     .mem_waddr_i (ram_waddr_ex  ) ,
-    .mem_we_i    (ram_we_ex     ) ,   
-    .r_index_i   (r_index_ex    ) ,
-    .w_index_i   (w_index_ex    ) ,
     .mem_wdata_o (ram_wdata_mem ) ,
     .mem_raddr_o (ram_raddr_mem ) ,
-    .mem_waddr_o (ram_waddr_mem ) ,
-    .mem_we_o    (ram_we_mem    ) ,   
-    .r_index_o   (r_index_mem   ) ,
-    .w_index_o   (w_index_mem   ) ,    
+    .mem_waddr_o (ram_waddr_mem ) , 
     .ex_data_o   ( ex_data      ),
     .ex_addr_o   ( ex_addr      ),
 
@@ -257,29 +276,30 @@ mem  u_mem (
     .mem_wdata_i (ram_wdata_mem ) ,
     .mem_raddr_i (ram_raddr_mem ) ,
     .mem_waddr_i (ram_waddr_mem ) ,
-    .mem_we_i    (ram_we_mem    ) ,   
-    .r_index     (r_index_mem   ) ,
-    .w_index     (w_index_mem   ) ,
-    .mem_wdata_o ( ram_wdata   ),
-    .mem_raddr_o ( ram_raddr  ),
-    .mem_waddr_o ( ram_waddr      ),
-    .mem_we_o    ( ram_we  ), 
-    .mem_rdata_i ( ram_rdata  ), 
+    .mem_wdata_o ( mem_wdata   ),
+    .mem_raddr_o ( mem_raddr  ),
+    .mem_waddr_o ( mem_waddr      ),
+    .mem_we_o    ( mem_we  ), 
+    .mem_rdata_i ( mem_rdata  ), 
     .mem_data_o  (mem_data      ),
     .mem_addr_o  (mem_addr      ),
     .reg_wdata_o ( wdata    ),
     .reg_we_o    ( we       ),
     .reg_waddr_o ( waddr    )
 );
-ram  u_ram (
-    .clk          ( clk           ),
-    .rst_n        ( rst_n         ),
-    .mem_wdata_i  ( ram_wdata   ),
-    .mem_waddr_i  ( ram_waddr   ),
-    .mem_we_i     ( ram_we      ),
-    .mem_raddr_i  ( ram_raddr   ),
 
-    .mem_rdata_o  ( ram_rdata   )
+
+regs  u_regs (
+    .clk               ( clk      ),
+    .rst_n             ( rst_n    ),
+    .we_i              ( we     ),
+    .waddr_i           ( waddr  ),
+    .wdata_i           ( wdata  ),
+    .raddr1_i          ( raddr1 ),
+    .raddr2_i          ( raddr2 ),
+
+    .rdata1_o          ( rdata1 ),
+    .rdata2_o          ( rdata2 )
 );
 
 endmodule
