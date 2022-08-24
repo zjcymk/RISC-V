@@ -19,7 +19,7 @@ module tb ();
         $fsdbDumpMDA();
     end
 
-    top u_top( .* );
+    soc u_soc( .* );
 
 
 endmodule

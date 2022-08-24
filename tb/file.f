@@ -1,15 +1,18 @@
-./type_pkg.sv
-./opcodes_pkg.sv
-./id_pkg.sv
+./pkg/type_pkg.sv
+./pkg/opcodes_pkg.sv
+./pkg/id_pkg.sv
 ./tb.sv
+./if_id.sv
 ./id_ex.sv
 ./mem.sv
 ./pc_reg.sv
 ./pkg.sv
 ./ram.sv
+./ram_ctrl.sv
 ./regs.sv
 ./rom.sv
-./top.sv
+./core.sv
+./soc.sv
 ./adder/adder_16bit.sv
 ./adder/adder_32bit.sv
 ./adder/adder_4bit.sv
@@ -20,4 +23,5 @@
 ./ex.sv
 ./ex_mem.sv
 ./id.sv
+./bus.sv
 
