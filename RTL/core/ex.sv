@@ -2,552 +2,156 @@
 import type_pkg::*;
 import opcode_pkg::*;
 module ex( 
-    //from id
-    input RegBus       reg1_rdata_i,    // 通用寄存器1数据
-    input RegBus       reg2_rdata_i,    // 通用寄存器2数据
-    input logic        reg_we_i,        // 写通用寄存器标志
-    input RegAddrBus   reg_waddr_i,     // 写通用寄存器地址
-    input word         imm1_i,
-    input word         imm2_i,
-    input ExCode       ex_code_i,     
-    input OpcodeWide   opcode_i,
+    // from id
+    input RegBus       reg1_rdata_i, 
+    input RegBus       reg2_rdata_i,
+    input word         IL_imm_i ,
+    input word         S_imm_i  ,
+    input word         B_imm_i  ,
+    input word         U_imm_i  ,
+    input word         JAL_imm_i,
+    input ExCode       ex_code_i , 
     input InstAddrBus  pc_i,
-    //to ALU
-    output word        ALU_data1_o,
-    output word        ALU_data2_o,
-    output aluop       ALU_op_o,
     //from ALU
     input DoubleRegBus ALU_result_i,
     input logic        ALU_busy_i,
-
     //to MEM
-    output MemBus     mem_wdata_o,    // 写内存数据
-    output MemAddrBus mem_raddr_o,    // 读内存地址
-    output MemAddrBus mem_waddr_o,    // 写内存地址
-    
+    output MemBus      mem_wdata_o,
+    output MemAddrBus  mem_raddr_o,
+    output MemAddrBus  mem_waddr_o,
     // to MEM --> reg
-    output RegBus     reg_wdata_o,   // 写寄存器数据
-    output logic      reg_we_o,      // 是否要写通用寄存器
-    output RegAddrBus reg_waddr_o,   // 写通用寄存器地址
-
+    output RegBus      reg_wdata_o,
     // to ctrl
-    output logic        jump_flag_o,  // 是否跳转标志
-    output InstAddrBus  jump_addr_o   // 跳转目的地址
-
+    output logic       jump_flag_o,
+    output InstAddrBus jump_addr_o 
 );
 InstAddrBus jump_addr;
-assign jump_addr = pc_i + imm1_i;
-assign data_ex_o = reg_wdata_o;
+assign jump_addr = pc_i + B_imm_i;
+assign mem_wdata_o =    ({32{(ex_code_i == ADDI  ) || (ex_code_i == SLTI ) || (ex_code_i == SLTIU) ||
+                             (ex_code_i == XORI  ) || (ex_code_i == ORI  ) || (ex_code_i == ANDI ) ||   
+                             (ex_code_i == SLLI  ) || (ex_code_i == SRLI ) || (ex_code_i == SRAI ) ||
+                             (ex_code_i == ADD   ) || (ex_code_i == SUB  ) || (ex_code_i == SLL  ) ||
+                             (ex_code_i == SLT   ) || (ex_code_i == SLTU ) || (ex_code_i == XOR  ) ||
+                             (ex_code_i == SRA   ) || (ex_code_i == SRL  ) || (ex_code_i == OR   ) ||
+                             (ex_code_i == AND   ) || (ex_code_i == MUL  ) || (ex_code_i == MULH ) ||
+                             (ex_code_i == MULHSU) || (ex_code_i == MULHU) || (ex_code_i == DIV  ) ||
+                             (ex_code_i == DIVU  ) || (ex_code_i == REM  ) || (ex_code_i == REMU ) ||
+                             (ex_code_i == LB    ) || (ex_code_i == LH   ) || (ex_code_i == LW   ) ||
+                             (ex_code_i == LBU   ) || (ex_code_i == LHU  ) || (ex_code_i == BEQ  ) ||
+                             (ex_code_i == BNE   ) || (ex_code_i == BLT  ) || (ex_code_i == BGE  ) ||
+                             (ex_code_i == BLTU  ) || (ex_code_i == BGEU ) || (ex_code_i == LUI  ) ||
+                             (ex_code_i == AUIPC ) || (ex_code_i == JAL  ) || (ex_code_i == JALR ) ||
+                             (ex_code_i == NOP   ) }} & 
+                        `ZeroWord) | 
+                        ({32{(ex_code_i == SB    ) || (ex_code_i == SH   ) || (ex_code_i == SW   ) }} & 
+                        reg2_rdata_i) ;
 
-assign reg_we_o = reg_we_i;
-assign reg_waddr_o = reg_waddr_i;
-always_comb begin
-    case (ex_code_i)
-    //INST_TYPE_I
-        ADDI: begin
-            ALU_data1_o = reg1_rdata_i;
-            ALU_data2_o = imm1_i;
-            ALU_op_o    = alu_add;
-            mem_wdata_o = `ZeroWord;
-            mem_raddr_o = `ZeroWord;
-            mem_waddr_o = `ZeroWord;
-            reg_wdata_o = ALU_result_i[31:0];
-            jump_flag_o = `JumpDisable;
-            jump_addr_o = `ZeroWord;
-        end
-        SLTI :begin
-            ALU_data1_o = reg1_rdata_i;
-            ALU_data2_o = imm1_i;
-            ALU_op_o    = alu_ge_s;
-            mem_wdata_o = `ZeroWord;
-            mem_raddr_o = `ZeroWord;
-            mem_waddr_o = `ZeroWord;
-            reg_wdata_o = {32{(~ALU_result_i[31:0])}};
-            jump_flag_o = `JumpDisable;
-            jump_addr_o = `ZeroWord;
-        end
-        SLTIU:begin
-            ALU_data1_o = reg1_rdata_i;
-            ALU_data2_o = imm1_i;
-            ALU_op_o    = alu_ge_u;
-            mem_wdata_o = `ZeroWord;
-            mem_raddr_o = `ZeroWord;
-            mem_waddr_o = `ZeroWord;
-            reg_wdata_o = {32{(~ALU_result_i[31:0])}};
-            jump_flag_o = `JumpDisable;
-            jump_addr_o = `ZeroWord;
-        end
-        XORI :begin
-            ALU_data1_o = reg1_rdata_i;
-            ALU_data2_o = imm1_i;
-            ALU_op_o    = alu_xor;
-            mem_wdata_o = `ZeroWord;
-            mem_raddr_o = `ZeroWord;
-            mem_waddr_o = `ZeroWord;
-            reg_wdata_o = ALU_result_i[31:0];
-            jump_flag_o = `JumpDisable;
-            jump_addr_o = `ZeroWord;
-        end
-        ORI  :begin
-            ALU_data1_o = reg1_rdata_i;
-            ALU_data2_o = imm1_i;
-            ALU_op_o    = alu_or;
-            mem_wdata_o = `ZeroWord;
-            mem_raddr_o = `ZeroWord;
-            mem_waddr_o = `ZeroWord;
-            reg_wdata_o = ALU_result_i[31:0];
-            jump_flag_o = `JumpDisable;
-            jump_addr_o = `ZeroWord;
-        end
-        ANDI :begin
-            ALU_data1_o = reg1_rdata_i;
-            ALU_data2_o = imm1_i;
-            ALU_op_o    = alu_and;
-            mem_wdata_o = `ZeroWord;
-            mem_raddr_o = `ZeroWord;
-            mem_waddr_o = `ZeroWord;
-            reg_wdata_o = ALU_result_i[31:0];
-            jump_flag_o = `JumpDisable;
-            jump_addr_o = `ZeroWord;
-        end
-        SLLI :begin
-            ALU_data1_o = reg1_rdata_i;
-            ALU_data2_o = imm1_i;
-            ALU_op_o    = alu_sll;
-            mem_wdata_o = `ZeroWord;
-            mem_raddr_o = `ZeroWord;
-            mem_waddr_o = `ZeroWord;
-            reg_wdata_o = ALU_result_i[31:0];
-            jump_flag_o = `JumpDisable;
-            jump_addr_o = `ZeroWord;
-        end
-        SRLI :begin
-            ALU_data1_o = reg1_rdata_i;
-            ALU_data2_o = imm1_i;
-            ALU_op_o    = alu_srl;
-            mem_wdata_o = `ZeroWord;
-            mem_raddr_o = `ZeroWord;
-            mem_waddr_o = `ZeroWord;
-            reg_wdata_o = ALU_result_i[31:0];
-            jump_flag_o = `JumpDisable;
-            jump_addr_o = `ZeroWord;
-        end
-        //INST_TYPE_R
-        ADD: begin
-            ALU_data1_o = reg1_rdata_i;
-            ALU_data2_o = reg2_rdata_i;
-            ALU_op_o    = alu_add;
-            mem_wdata_o = `ZeroWord;
-            mem_raddr_o = `ZeroWord;
-            mem_waddr_o = `ZeroWord;
-            reg_wdata_o = ALU_result_i[31:0];
-            jump_flag_o = `JumpDisable;
-            jump_addr_o = `ZeroWord;
-        end
-        SUB :begin
-            ALU_data1_o = reg1_rdata_i;
-            ALU_data2_o = reg2_rdata_i;
-            ALU_op_o    = alu_sub;
-            mem_wdata_o = `ZeroWord;
-            mem_raddr_o = `ZeroWord;
-            mem_waddr_o = `ZeroWord;
-            reg_wdata_o = ALU_result_i[31:0];
-            jump_flag_o = `JumpDisable;
-            jump_addr_o = `ZeroWord;
-        end
-        MUL   :begin
-            ALU_data1_o = reg1_rdata_i;
-            ALU_data2_o = reg2_rdata_i;
-            ALU_op_o    = alu_mul_u;
-            mem_wdata_o = `ZeroWord;
-            mem_raddr_o = `ZeroWord;
-            mem_waddr_o = `ZeroWord;
-            reg_wdata_o = ALU_result_i[31:0];
-            jump_flag_o = `JumpDisable;
-            jump_addr_o = `ZeroWord;
-        end
-        MULH  :begin
-            ALU_data1_o = reg1_rdata_i;
-            ALU_data2_o = reg2_rdata_i;
-            ALU_op_o    = alu_mul_s;
-            mem_wdata_o = `ZeroWord;
-            mem_raddr_o = `ZeroWord;
-            mem_waddr_o = `ZeroWord;
-            reg_wdata_o = ALU_result_i[63:32];
-            jump_flag_o = `JumpDisable;
-            jump_addr_o = `ZeroWord;
-        end
-        MULHSU:begin
-            ALU_data1_o = reg1_rdata_i;
-            ALU_data2_o = reg2_rdata_i;
-            ALU_op_o    = alu_mul_u;
-            mem_wdata_o = `ZeroWord;
-            mem_raddr_o = `ZeroWord;
-            mem_waddr_o = `ZeroWord;
-            if (reg1_rdata_i[31] == 1'b1)
-                reg_wdata_o = ~ALU_result_i[63:32]+1;
-            else 
-                reg_wdata_o = ALU_result_i[63:32];
-            jump_flag_o = `JumpDisable;
-            jump_addr_o = `ZeroWord;
-        end
-        MULHU :begin
-            ALU_data1_o = reg1_rdata_i;
-            ALU_data2_o = reg2_rdata_i;
-            ALU_op_o    = alu_mul_u;
-            mem_wdata_o = `ZeroWord;
-            mem_raddr_o = `ZeroWord;
-            mem_waddr_o = `ZeroWord;
-            reg_wdata_o = ALU_result_i[63:32];
-            jump_flag_o = `JumpDisable;
-            jump_addr_o = `ZeroWord;
-        end
-        DIV   :begin
-            ALU_data1_o = reg1_rdata_i;
-            ALU_data2_o = reg2_rdata_i;
-            ALU_op_o    = alu_div_s;
-            mem_wdata_o = `ZeroWord;
-            mem_raddr_o = `ZeroWord;
-            mem_waddr_o = `ZeroWord;
-            reg_wdata_o = ALU_result_i[31:0];
-            jump_flag_o = `JumpDisable;
-            jump_addr_o = `ZeroWord;
-        end
-        DIVU  :begin
-            ALU_data1_o = reg1_rdata_i;
-            ALU_data2_o = reg2_rdata_i;
-            ALU_op_o    = alu_div_u;
-            mem_wdata_o = `ZeroWord;
-            mem_raddr_o = `ZeroWord;
-            mem_waddr_o = `ZeroWord;
-            reg_wdata_o = ALU_result_i[31:0];
-            jump_flag_o = `JumpDisable;
-            jump_addr_o = `ZeroWord;
-        end
-        REM   :begin
-            ALU_data1_o = reg1_rdata_i;
-            ALU_data2_o = reg2_rdata_i;
-            ALU_op_o    = alu_rem_s;
-            mem_wdata_o = `ZeroWord;
-            mem_raddr_o = `ZeroWord;
-            mem_waddr_o = `ZeroWord;
-            reg_wdata_o = ALU_result_i[31:0];
-            jump_flag_o = `JumpDisable;
-            jump_addr_o = `ZeroWord;
-        end
-        REMU  :begin
-            ALU_data1_o = reg1_rdata_i;
-            ALU_data2_o = reg2_rdata_i;
-            ALU_op_o    = alu_rem_u;
-            mem_wdata_o = `ZeroWord;
-            mem_raddr_o = `ZeroWord;
-            mem_waddr_o = `ZeroWord;
-            reg_wdata_o = ALU_result_i[31:0];
-            jump_flag_o = `JumpDisable;
-            jump_addr_o = `ZeroWord;
-        end
-        SLL :begin
-            ALU_data1_o = reg1_rdata_i;
-            ALU_data2_o = reg2_rdata_i[4:0];
-            ALU_op_o    = alu_sll;
-            mem_wdata_o = `ZeroWord;
-            mem_raddr_o = `ZeroWord;
-            mem_waddr_o = `ZeroWord;
-            reg_wdata_o = ALU_result_i[31:0];
-            jump_flag_o = `JumpDisable;
-            jump_addr_o = `ZeroWord;
-        end
-        SLT :begin
-            ALU_data1_o = reg1_rdata_i;
-            ALU_data2_o = reg2_rdata_i;
-            ALU_op_o    = alu_ge_s;
-            mem_wdata_o = `ZeroWord;
-            mem_raddr_o = `ZeroWord;
-            mem_waddr_o = `ZeroWord;
-            reg_wdata_o = {32{(~ALU_result_i[31:0])}};
-            jump_flag_o = `JumpDisable;
-            jump_addr_o = `ZeroWord;
-        end
-        SLTU:begin
-            ALU_data1_o = reg1_rdata_i;
-            ALU_data2_o = reg2_rdata_i;
-            ALU_op_o    = alu_ge_u;
-            mem_wdata_o = `ZeroWord;
-            mem_raddr_o = `ZeroWord;
-            mem_waddr_o = `ZeroWord;
-            reg_wdata_o = {32{(~ALU_result_i[31:0])}};
-            jump_flag_o = `JumpDisable;
-            jump_addr_o = `ZeroWord;
-        end
-        XOR :begin
-            ALU_data1_o = reg1_rdata_i;
-            ALU_data2_o = reg2_rdata_i;
-            ALU_op_o    = alu_xor;
-            mem_wdata_o = `ZeroWord;
-            mem_raddr_o = `ZeroWord;
-            mem_waddr_o = `ZeroWord;
-            reg_wdata_o = ALU_result_i[31:0];
-            jump_flag_o = `JumpDisable;
-            jump_addr_o = `ZeroWord;
-        end
-        SRA :begin
-            ALU_data1_o = reg1_rdata_i;
-            ALU_data2_o = reg2_rdata_i[4:0];
-            ALU_op_o    = alu_sra;
-            mem_wdata_o = `ZeroWord;
-            mem_raddr_o = `ZeroWord;
-            mem_waddr_o = `ZeroWord;
-            reg_wdata_o = ALU_result_i[31:0];
-            jump_flag_o = `JumpDisable;
-            jump_addr_o = `ZeroWord;
-        end
-        SRL :begin
-            ALU_data1_o = reg1_rdata_i;
-            ALU_data2_o = reg2_rdata_i[4:0];
-            ALU_op_o    = alu_srl;
-            mem_wdata_o = `ZeroWord;
-            mem_raddr_o = `ZeroWord;
-            mem_waddr_o = `ZeroWord;
-            reg_wdata_o = ALU_result_i[31:0];
-            jump_flag_o = `JumpDisable;
-            jump_addr_o = `ZeroWord;
-        end
-        OR  :begin
-            ALU_data1_o = reg1_rdata_i;
-            ALU_data2_o = reg2_rdata_i;
-            ALU_op_o    = alu_or;
-            mem_wdata_o = `ZeroWord;
-            mem_raddr_o = `ZeroWord;
-            mem_waddr_o = `ZeroWord;
-            reg_wdata_o = ALU_result_i[31:0];
-            jump_flag_o = `JumpDisable;
-            jump_addr_o = `ZeroWord;
-        end
-        AND :begin
-            ALU_data1_o = reg1_rdata_i;
-            ALU_data2_o = reg2_rdata_i;
-            ALU_op_o    = alu_and;
-            mem_wdata_o = `ZeroWord;
-            mem_raddr_o = `ZeroWord;
-            mem_waddr_o = `ZeroWord;
-            reg_wdata_o = ALU_result_i[31:0];
-            jump_flag_o = `JumpDisable;
-            jump_addr_o = `ZeroWord;
-        end
-        //INST_TYPE_B
-        BEQ  :begin
-            ALU_data1_o = reg1_rdata_i;
-            ALU_data2_o = reg2_rdata_i;
-            ALU_op_o    = alu_eq;
-            mem_wdata_o = `ZeroWord;
-            mem_raddr_o = `ZeroWord;
-            mem_waddr_o = `ZeroWord;
-            reg_wdata_o = `ZeroWord;
-            jump_flag_o = (ALU_result_i[31:0]) & `JumpEnable;
-            jump_addr_o = jump_addr;
-        end
-        BNE  :begin
-            ALU_data1_o = reg1_rdata_i;
-            ALU_data2_o = reg2_rdata_i;
-            ALU_op_o    = alu_eq;
-            mem_wdata_o = `ZeroWord;
-            mem_raddr_o = `ZeroWord;
-            mem_waddr_o = `ZeroWord;
-            reg_wdata_o = `ZeroWord;
-            jump_flag_o = (~ALU_result_i[31:0]) & `JumpEnable;
-            jump_addr_o = jump_addr; 
-        end
-        BLT  :begin
-            ALU_data1_o = reg1_rdata_i;
-            ALU_data2_o = reg2_rdata_i;
-            ALU_op_o    = alu_ge_s;
-            mem_wdata_o = `ZeroWord;
-            mem_raddr_o = `ZeroWord;
-            mem_waddr_o = `ZeroWord;
-            reg_wdata_o = `ZeroWord;
-            jump_flag_o = (~ALU_result_i[31:0]) & `JumpEnable;
-            jump_addr_o = jump_addr; 
-        end
-        BGE  :begin
-            ALU_data1_o = reg1_rdata_i;
-            ALU_data2_o = reg2_rdata_i;
-            ALU_op_o    = alu_ge_s;
-            mem_wdata_o = `ZeroWord;
-            mem_raddr_o = `ZeroWord;
-            mem_waddr_o = `ZeroWord;
-            reg_wdata_o = `ZeroWord;
-            jump_flag_o = (ALU_result_i[31:0]) & `JumpEnable;
-            jump_addr_o = jump_addr; 
-        end
-        BLTU :begin
-            ALU_data1_o = reg1_rdata_i;
-            ALU_data2_o = reg2_rdata_i;
-            ALU_op_o    = alu_ge_u;
-            mem_wdata_o = `ZeroWord;
-            mem_raddr_o = `ZeroWord;
-            mem_waddr_o = `ZeroWord;
-            reg_wdata_o = `ZeroWord;
-            jump_flag_o = (~ALU_result_i[31:0]) & `JumpEnable;
-            jump_addr_o = jump_addr;  
-        end
-        BGEU :begin
-            ALU_data1_o = reg1_rdata_i;
-            ALU_data2_o = reg2_rdata_i;
-            ALU_op_o    = alu_ge_u;
-            mem_wdata_o = `ZeroWord;
-            mem_raddr_o = `ZeroWord;
-            mem_waddr_o = `ZeroWord;
-            reg_wdata_o = `ZeroWord;
-            jump_flag_o = (ALU_result_i[31:0]) & `JumpEnable;
-            jump_addr_o = jump_addr; 
-        end
-        //INST_TYPE_L
-        LB :begin
-            ALU_data1_o = reg1_rdata_i;
-            ALU_data2_o = imm1_i;
-            ALU_op_o    = alu_add;
-            mem_wdata_o = `ZeroWord;
-            mem_raddr_o = ALU_result_i[31:0];
-            mem_waddr_o = `ZeroWord;
-            reg_wdata_o = `ZeroWord;
-            jump_flag_o = `JumpDisable;
-            jump_addr_o = `ZeroWord;
-        end
-        LH :begin
-            ALU_data1_o = reg1_rdata_i;
-            ALU_data2_o = imm1_i;
-            ALU_op_o    = alu_add;
-            mem_wdata_o = `ZeroWord;
-            mem_raddr_o = ALU_result_i[31:0];
-            mem_waddr_o = `ZeroWord;
-            reg_wdata_o = `ZeroWord;
-            jump_flag_o = `JumpDisable;
-            jump_addr_o = `ZeroWord;
-        end
-        LW :begin
-            ALU_data1_o = reg1_rdata_i;
-            ALU_data2_o = imm1_i;
-            ALU_op_o    = alu_add;
-            mem_wdata_o = `ZeroWord;
-            mem_raddr_o = ALU_result_i[31:0];
-            mem_waddr_o = `ZeroWord;
-            reg_wdata_o = `ZeroWord;
-            jump_flag_o = `JumpDisable;
-            jump_addr_o = `ZeroWord;   
-        end
-        LBU:begin
-            ALU_data1_o = reg1_rdata_i;
-            ALU_data2_o = imm1_i;
-            ALU_op_o    = alu_add;
-            mem_wdata_o = `ZeroWord;
-            mem_raddr_o = ALU_result_i[31:0];
-            mem_waddr_o = `ZeroWord;
-            reg_wdata_o = `ZeroWord;
-            jump_flag_o = `JumpDisable;
-            jump_addr_o = `ZeroWord;   
-        end
-        LHU:begin
-            ALU_data1_o = reg1_rdata_i;
-            ALU_data2_o = imm1_i;
-            ALU_op_o    = alu_add;
-            mem_wdata_o = `ZeroWord;
-            mem_raddr_o = ALU_result_i[31:0];
-            mem_waddr_o = `ZeroWord;
-            reg_wdata_o = `ZeroWord;
-            jump_flag_o = `JumpDisable;
-            jump_addr_o = `ZeroWord;  
-        end
-        // INST_TYPE_S
-        SB: begin
-            ALU_data1_o = reg1_rdata_i;
-            ALU_data2_o = imm1_i;
-            ALU_op_o    = alu_add;
-            mem_wdata_o = reg2_rdata_i;
-            mem_raddr_o = `ZeroWord;
-            mem_waddr_o = ALU_result_i[31:0];
-            reg_wdata_o = `ZeroWord;
-            jump_flag_o = `JumpDisable;
-            jump_addr_o = `ZeroWord;  
-        end
-        SH: begin
-            ALU_data1_o = reg1_rdata_i;
-            ALU_data2_o = imm1_i;
-            ALU_op_o    = alu_add;
-            mem_wdata_o = reg2_rdata_i;
-            mem_raddr_o = `ZeroWord;
-            mem_waddr_o = ALU_result_i[31:0];
-            reg_wdata_o = `ZeroWord;
-            jump_flag_o = `JumpDisable;
-            jump_addr_o = `ZeroWord; 
-        end
-        SW: begin
-            ALU_data1_o = reg1_rdata_i;
-            ALU_data2_o = imm1_i;
-            ALU_op_o    = alu_add;
-            mem_wdata_o = reg2_rdata_i;
-            mem_raddr_o = `ZeroWord;
-            mem_waddr_o = ALU_result_i[31:0];
-            reg_wdata_o = `ZeroWord;
-            jump_flag_o = `JumpDisable;
-            jump_addr_o = `ZeroWord;              
-        end
-        // INST_TYPE_U
-        LUI: begin
-            ALU_data1_o = `ZeroWord;
-            ALU_data2_o = `ZeroWord;
-            ALU_op_o    = alu_nop;
-            mem_wdata_o = `ZeroWord;
-            mem_raddr_o = `ZeroWord;
-            mem_waddr_o = `ZeroWord;
-            reg_wdata_o = imm1_i;
-            jump_flag_o = `JumpDisable;
-            jump_addr_o = `ZeroWord;            
-        end
-        AUIPC: begin
-            ALU_data1_o = imm1_i;
-            ALU_data2_o = pc_i;
-            ALU_op_o    = alu_add;
-            mem_wdata_o = `ZeroWord;
-            mem_raddr_o = `ZeroWord;
-            mem_waddr_o = `ZeroWord;
-            reg_wdata_o = ALU_result_i[31:0];
-            jump_flag_o = `JumpDisable;
-            jump_addr_o = `ZeroWord;            
-        end
-        // INST_TYPE_J
-        JAL  :begin
-            ALU_data1_o = imm2_i;
-            ALU_data2_o = pc_i;
-            ALU_op_o    = alu_add;
-            mem_wdata_o = `ZeroWord;
-            mem_raddr_o = `ZeroWord;
-            mem_waddr_o = `ZeroWord;
-            reg_wdata_o = ALU_result_i[31:0];
-            jump_flag_o = `JumpEnable;
-            jump_addr_o = jump_addr;      
-        end
-        JALR :begin
-            ALU_data1_o = imm2_i;
-            ALU_data2_o = pc_i;
-            ALU_op_o    = alu_add;
-            mem_wdata_o = `ZeroWord;
-            mem_raddr_o = `ZeroWord;
-            mem_waddr_o = `ZeroWord;
-            reg_wdata_o = ALU_result_i[31:0];
-            jump_flag_o = `JumpEnable;
-            jump_addr_o = reg1_rdata_i + imm1_i; 
-        end
-        default: begin
-            ALU_data1_o = `ZeroWord;
-            ALU_data2_o = `ZeroWord;
-            ALU_op_o    = alu_nop;
-            mem_wdata_o = `ZeroWord;
-            mem_raddr_o = `ZeroWord;
-            mem_waddr_o = `ZeroWord;
-            reg_wdata_o = ALU_result_i[31:0];
-            jump_flag_o = `JumpDisable;
-            jump_addr_o = `ZeroWord;
-        end
-    endcase
-end
+assign mem_waddr_o =    ({32{(ex_code_i == ADDI  ) || (ex_code_i == SLTI ) || (ex_code_i == SLTIU) ||
+                             (ex_code_i == XORI  ) || (ex_code_i == ORI  ) || (ex_code_i == ANDI ) ||   
+                             (ex_code_i == SLLI  ) || (ex_code_i == SRLI ) || (ex_code_i == SRAI ) ||
+                             (ex_code_i == ADD   ) || (ex_code_i == SUB  ) || (ex_code_i == SLL  ) ||
+                             (ex_code_i == SLT   ) || (ex_code_i == SLTU ) || (ex_code_i == XOR  ) ||
+                             (ex_code_i == SRA   ) || (ex_code_i == SRL  ) || (ex_code_i == OR   ) ||
+                             (ex_code_i == AND   ) || (ex_code_i == MUL  ) || (ex_code_i == MULH ) ||
+                             (ex_code_i == MULHSU) || (ex_code_i == MULHU) || (ex_code_i == DIV  ) ||
+                             (ex_code_i == DIVU  ) || (ex_code_i == REM  ) || (ex_code_i == REMU ) ||
+                             (ex_code_i == LB    ) || (ex_code_i == LH   ) || (ex_code_i == LW   ) ||
+                             (ex_code_i == LBU   ) || (ex_code_i == LHU  ) || (ex_code_i == BEQ  ) ||
+                             (ex_code_i == BNE   ) || (ex_code_i == BLT  ) || (ex_code_i == BGE  ) ||
+                             (ex_code_i == BLTU  ) || (ex_code_i == BGEU ) || (ex_code_i == LUI  ) ||
+                             (ex_code_i == AUIPC ) || (ex_code_i == JAL  ) || (ex_code_i == JALR ) ||
+                             (ex_code_i == NOP   ) }} & 
+                        `ZeroWord) | 
+                        ({32{(ex_code_i == SB    ) || (ex_code_i == SH   ) || (ex_code_i == SW   ) }} & 
+                        ALU_result_i[31:0]) ;
+
+assign mem_raddr_o =    ({32{(ex_code_i == ADDI  ) || (ex_code_i == SLTI ) || (ex_code_i == SLTIU) ||
+                             (ex_code_i == XORI  ) || (ex_code_i == ORI  ) || (ex_code_i == ANDI ) ||
+                             (ex_code_i == SLLI  ) || (ex_code_i == SRLI ) || (ex_code_i == SRAI ) ||
+                             (ex_code_i == ADD   ) || (ex_code_i == SUB  ) || (ex_code_i == SLL  ) ||
+                             (ex_code_i == SLT   ) || (ex_code_i == SLTU ) || (ex_code_i == XOR  ) ||
+                             (ex_code_i == SRA   ) || (ex_code_i == SRL  ) || (ex_code_i == OR   ) ||
+                             (ex_code_i == AND   ) || (ex_code_i == MUL  ) || (ex_code_i == MULH ) ||
+                             (ex_code_i == MULHSU) || (ex_code_i == MULHU) || (ex_code_i == DIV  ) ||
+                             (ex_code_i == DIVU  ) || (ex_code_i == REM  ) || (ex_code_i == REMU ) ||
+                             (ex_code_i == SB    ) || (ex_code_i == SH   ) || (ex_code_i == BEQ  ) ||
+                             (ex_code_i == BNE   ) || (ex_code_i == BLT  ) || (ex_code_i == BGE  ) ||
+                             (ex_code_i == BLTU  ) || (ex_code_i == BGEU ) || (ex_code_i == LUI  ) ||
+                             (ex_code_i == AUIPC ) || (ex_code_i == JAL  ) || (ex_code_i == JALR ) ||
+                             (ex_code_i == NOP   ) || (ex_code_i == SW   )  }} & 
+                        `ZeroWord) | 
+                        ({32{(ex_code_i == LB    ) || (ex_code_i == LH   ) || (ex_code_i == LW   ) ||
+                             (ex_code_i == LBU   ) || (ex_code_i == LHU  )  }} & 
+                        ALU_result_i[31:0]) ;
+
+assign jump_flag_o =    ({32{(ex_code_i == ADDI  ) || (ex_code_i == SLTI ) || (ex_code_i == SLTIU) ||
+                             (ex_code_i == XORI  ) || (ex_code_i == ORI  ) || (ex_code_i == ANDI ) ||
+                             (ex_code_i == SLLI  ) || (ex_code_i == SRLI ) || (ex_code_i == SRAI ) ||
+                             (ex_code_i == ADD   ) || (ex_code_i == SUB  ) || (ex_code_i == SLL  ) ||
+                             (ex_code_i == SLT   ) || (ex_code_i == SLTU ) || (ex_code_i == XOR  ) ||
+                             (ex_code_i == SRA   ) || (ex_code_i == SRL  ) || (ex_code_i == OR   ) ||
+                             (ex_code_i == AND   ) || (ex_code_i == MUL  ) || (ex_code_i == MULH ) ||
+                             (ex_code_i == MULHSU) || (ex_code_i == MULHU) || (ex_code_i == DIV  ) ||
+                             (ex_code_i == DIVU  ) || (ex_code_i == REM  ) || (ex_code_i == REMU ) ||
+                             (ex_code_i == SB    ) || (ex_code_i == SH   ) || 
+                             (ex_code_i == LUI   ) || (ex_code_i == AUIPC) ||(ex_code_i == NOP   ) || 
+                             (ex_code_i == SW    ) || (ex_code_i == LB   ) || (ex_code_i == LH   ) || 
+                             (ex_code_i == LW    ) ||(ex_code_i == LBU   ) || (ex_code_i == LHU  ) }} & 
+                        `ZeroWord) | 
+                        ({32{(ex_code_i == BEQ   ) || (ex_code_i == BGE  ) || (ex_code_i == BGEU ) }} & 
+                        ((ALU_result_i[31:0]) & `JumpEnable)) |
+                        ({32{(ex_code_i == BNE   ) || (ex_code_i == BLT  ) || (ex_code_i == BLTU  ) }} & 
+                        ((~ALU_result_i[31:0]) & `JumpEnable)) |
+                        ({32{ (ex_code_i == JAL  ) || (ex_code_i == JALR ) }} & 
+                        `JumpEnable) ;
+
+assign jump_addr_o =    ({32{(ex_code_i == ADDI  ) || (ex_code_i == SLTI ) || (ex_code_i == SLTIU) ||
+                             (ex_code_i == XORI  ) || (ex_code_i == ORI  ) || (ex_code_i == ANDI ) ||
+                             (ex_code_i == SLLI  ) || (ex_code_i == SRLI ) || (ex_code_i == SRAI ) ||
+                             (ex_code_i == ADD   ) || (ex_code_i == SUB  ) || (ex_code_i == SLL  ) ||
+                             (ex_code_i == SLT   ) || (ex_code_i == SLTU ) || (ex_code_i == XOR  ) ||
+                             (ex_code_i == SRA   ) || (ex_code_i == SRL  ) || (ex_code_i == OR   ) ||
+                             (ex_code_i == AND   ) || (ex_code_i == MUL  ) || (ex_code_i == MULH ) ||
+                             (ex_code_i == MULHSU) || (ex_code_i == MULHU) || (ex_code_i == DIV  ) ||
+                             (ex_code_i == DIVU  ) || (ex_code_i == REM  ) || (ex_code_i == REMU ) ||
+                             (ex_code_i == SB    ) || (ex_code_i == SH   ) || (ex_code_i == LUI  ) || 
+                             (ex_code_i == AUIPC ) || (ex_code_i == NOP  ) || (ex_code_i == SW   ) || 
+                             (ex_code_i == LB    ) || (ex_code_i == LH   ) || (ex_code_i == LW   ) ||
+                             (ex_code_i == LBU   ) || (ex_code_i == LHU  ) }} & 
+                        `ZeroWord) | 
+                        ({32{ (ex_code_i == BEQ  ) ||(ex_code_i == BNE   ) || (ex_code_i == BLT  ) || 
+                              (ex_code_i == BGE  ) ||(ex_code_i == BLTU  ) || (ex_code_i == BGEU ) }} & 
+                        jump_addr) |
+                        ({32{ (ex_code_i == JAL  ) }} & 
+                        (pc_i + IL_imm_i)) |
+                        ({32{ (ex_code_i == JALR ) }} & 
+                        (reg1_rdata_i + JAL_imm_i)) ;
+
+assign reg_wdata_o =    ({32{(ex_code_i == ADDI  ) || 
+                             (ex_code_i == XORI  ) || (ex_code_i == ORI  ) || (ex_code_i == ANDI ) ||
+                             (ex_code_i == SLLI  ) || (ex_code_i == SRLI ) || (ex_code_i == SRAI ) ||
+                             (ex_code_i == ADD   ) || (ex_code_i == SUB  ) || (ex_code_i == SLL  ) ||
+                             (ex_code_i == XOR   ) ||
+                             (ex_code_i == SRA   ) || (ex_code_i == SRL  ) || (ex_code_i == OR   ) ||
+                             (ex_code_i == AND   ) || (ex_code_i == MUL  ) || (ex_code_i == MULH ) ||
+                             (ex_code_i == DIV   ) || (ex_code_i == DIVU ) || (ex_code_i == REM  ) || 
+                             (ex_code_i == REMU  ) || (ex_code_i == LUI  ) || (ex_code_i == AUIPC) ||
+                             (ex_code_i == JAL  ) || (ex_code_i == JALR ) }} & 
+                        ALU_result_i[31:0]) | 
+                        ({32{(ex_code_i == SLTI  ) || (ex_code_i == SLTIU) ||(ex_code_i == SLT   ) || 
+                             (ex_code_i == SLTU )}} & 
+                        {32{(~ALU_result_i[31:0])}}) | 
+                        ({32{(ex_code_i == MULH  ) || (ex_code_i == MULHU)}} & 
+                        ALU_result_i[63:32]) | 
+                        ({32{(ex_code_i == SB    ) || (ex_code_i == SH   ) || (ex_code_i == NOP  ) || 
+                             (ex_code_i == SW    ) || 
+                             (ex_code_i == LB    ) || (ex_code_i == LH   ) || (ex_code_i == LW   ) ||
+                             (ex_code_i == LBU   ) || (ex_code_i == LHU  ) || (ex_code_i == BEQ  ) ||
+                             (ex_code_i == BNE   ) || (ex_code_i == BLT  ) || (ex_code_i == BGE  ) ||
+                             (ex_code_i == BLTU  ) || (ex_code_i == BGEU ) || (ex_code_i == NOP  ) }} & 
+                        `ZeroWord) |
+                        ({32{(ex_code_i == LUI   ) || (ex_code_i == AUIPC )}} & 
+                        U_imm_i) |
+                        ({32{(ex_code_i == MULHSU)}} & 
+                        ((reg1_rdata_i[31] == 1'b1) ? ~ALU_result_i[63:32]+1 : ALU_result_i[63:32])) ;
 endmodule

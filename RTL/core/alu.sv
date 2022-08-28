@@ -21,7 +21,7 @@ word remainder;
 assign ALU_busy_o = div_busy;
 always_comb begin
     unique case (ALU_op_i)
-        alu_add     : ALU_result_o = ADD_S;
+        alu_add     : ALU_result_o = ALU_data1_i  +  ALU_data2_i;
         alu_sub     : ALU_result_o = ALU_data1_i  -  ALU_data2_i;
         alu_xor     : ALU_result_o = ALU_data1_i  ^  ALU_data2_i;
         alu_mul_u   : ALU_result_o = $unsigned(ALU_data1_i)  *  $unsigned(ALU_data2_i);
@@ -148,11 +148,4 @@ assign remainder = remainder_e;
 assign div_busy = (current_state==SUB  ||
                    current_state==SHIFT ) | en;
 
-
-adder_32bit u_32bit(
-.A    (ALU_data1_i),
-.B    (ALU_data2_i),
-.Cin  (1'b0),
-.S    (ADD_S)
-);
 endmodule

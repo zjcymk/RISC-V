@@ -17,7 +17,8 @@ module ctrl(
     input  RegAddrBus   id_raddr2_i,
     input  InstAddrBus  pc_id_i    ,
     //to id_ex
-    output logic        hold_flag,
+    output logic        hold_A_flag,
+    output logic        hold_B_flag,
     output logic        scour_flag,
     //to if
     output logic        jump_bp,
@@ -25,15 +26,14 @@ module ctrl(
     input  InstAddrBus  pc_i    ,
     input  InstBus      inst_i,
     //to pc_reg 
-    output InstAddrBus  pc_o    ,
-    output logic        pc_hold_flag
+    output InstAddrBus  pc_o    
 );
 logic j_type;
 logic   hold_flag1,
-        hold_flag2,
-        hold_flag3;
-//assign pc_hold_flag = hold_flag1 | hold_flag2 | hold_flag3 | ALU_busy_i;;
-assign hold_flag = hold_flag1 | hold_flag2 | hold_flag3 | ALU_busy_i;
+        hold_flag2;
+
+assign hold_A_flag = hold_flag1 | hold_flag2 | ALU_busy_i;
+assign hold_B_flag = ALU_busy_i;
 assign scour_flag = jump_flag_i ^ bp_jump_ex ;
 
 always_comb begin
@@ -50,13 +50,8 @@ always_comb begin
         hold_flag2 = 1'b0;
     end
 end
-always_comb begin
-    if (ALU_busy_i) begin
-        hold_flag3 = 1'b1;
-    end else begin
-        hold_flag3 = 1'b0;
-    end
-end
+
+
 
 always_comb begin
     unique case (inst_i[6:0])
@@ -64,15 +59,7 @@ always_comb begin
         default: j_type = 1'b0;
     endcase
 end
-/*
-always_comb begin
-    if (jump_flag_i == `JumpEnable) begin
-        pc_o  = pc_jump_i;
-    end else begin
-        pc_o  = 'd0;
-    end
-end
-*/
+
 word list   [0:31];
 always_ff @( posedge clk ) begin 
     if (!rst_n) begin
